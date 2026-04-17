@@ -1,0 +1,31 @@
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+  ai:
+    mcp:
+      server:
+        stdio: true
+        name: mcp-db-server
+        version: 0.1.0
+        instructions: >
+          Сервер для чтения метаданных SQL Server и dry-run INSERT с обязательным rollback.
+          Разрешены только операции чтения и INSERT в транзакции с откатом.
+
+server:
+  port: 0
+
+app:
+  db:
+    host: ${MCP_DB_HOST:localhost}
+    port: ${MCP_DB_PORT:1433}
+    database: ${MCP_DB_NAME:master}
+    username: ${MCP_DB_USERNAME:sa}
+    password: ${MCP_DB_PASSWORD:sa}
+    host-whitelist: ${MCP_DB_HOST_WHITELIST:localhost,127.0.0.1}
+    schema-whitelist: ${MCP_DB_SCHEMA_WHITELIST:dbo}
+    connect-timeout-seconds: ${MCP_DB_CONNECT_TIMEOUT_SECONDS:5}
+    query-timeout-seconds: ${MCP_DB_QUERY_TIMEOUT_SECONDS:15}
+    max-select-rows: ${MCP_DB_MAX_SELECT_ROWS:200}
+    max-sample-rows: ${MCP_DB_MAX_SAMPLE_ROWS:20}
+    max-text-length: ${MCP_DB_MAX_TEXT_LENGTH:1000}

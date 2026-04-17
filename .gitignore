@@ -1,0 +1,16 @@
+### build ###
+.gradle/
+build/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### logs ###
+*.log
+
+### other ###
+.classpath
+.project
