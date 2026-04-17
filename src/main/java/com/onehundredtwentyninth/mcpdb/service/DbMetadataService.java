@@ -1,6 +1,15 @@
 package com.onehundredtwentyninth.mcpdb.service;
 
 import com.onehundredtwentyninth.mcpdb.config.DatabaseProperties;
+import com.onehundredtwentyninth.mcpdb.model.ConstraintsInfoModel;
+import com.onehundredtwentyninth.mcpdb.model.ForeignKeysModel;
+import com.onehundredtwentyninth.mcpdb.model.InsertDryRunModel;
+import com.onehundredtwentyninth.mcpdb.model.SafeSelectModel;
+import com.onehundredtwentyninth.mcpdb.model.SampleRowsModel;
+import com.onehundredtwentyninth.mcpdb.model.SchemaOverviewModel;
+import com.onehundredtwentyninth.mcpdb.model.SearchSchemaModel;
+import com.onehundredtwentyninth.mcpdb.model.TableDependenciesModel;
+import com.onehundredtwentyninth.mcpdb.model.TableDescriptionModel;
 import com.onehundredtwentyninth.mcpdb.validation.SqlSafetyValidator;
 import org.springframework.stereotype.Service;
 
@@ -32,7 +41,7 @@ public class DbMetadataService {
         this.sqlSafetyValidator = sqlSafetyValidator;
     }
 
-    public Map<String, Object> schemaOverview() {
+    public SchemaOverviewModel schemaOverview() {
         var sql = """
                 SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE
                 FROM INFORMATION_SCHEMA.TABLES t
@@ -46,15 +55,10 @@ public class DbMetadataService {
                         LinkedHashMap::new,
                         Collectors.counting())
                 );
-        return Map.of(
-                "database", properties.database(),
-                "schemas", properties.schemaWhitelist(),
-                "tableCountBySchema", counts,
-                "tables", rows
-        );
+        return new SchemaOverviewModel(properties.database(), properties.schemaWhitelist(), counts, rows);
     }
 
-    public Map<String, Object> describeTable(String schema, String table) {
+    public TableDescriptionModel describeTable(String schema, String table) {
         validateSchema(schema);
         var sql = """
                 SELECT c.ORDINAL_POSITION,
@@ -71,10 +75,10 @@ public class DbMetadataService {
                 ORDER BY c.ORDINAL_POSITION
                 """;
         var columns = query(sql, schema, table);
-        return Map.of("schema", schema, "table", table, "columns", columns);
+        return new TableDescriptionModel(schema, table, columns);
     }
 
-    public Map<String, Object> foreignKeys(String schema, String table) {
+    public ForeignKeysModel foreignKeys(String schema, String table) {
         validateSchema(schema);
         var sql = """
                 SELECT fk.name AS FK_NAME,
@@ -98,10 +102,10 @@ public class DbMetadataService {
         var outgoing = query(sql, schema, table);
         var incomingSql = sql.replace("sch_parent.name = ? AND tab_parent.name = ?", "sch_ref.name = ? AND tab_ref.name = ?");
         var incoming = query(incomingSql, schema, table);
-        return Map.of("schema", schema, "table", table, "outgoing", outgoing, "incoming", incoming);
+        return new ForeignKeysModel(schema, table, outgoing, incoming);
     }
 
-    public Map<String, Object> constraintsInfo(String schema, String table) {
+    public ConstraintsInfoModel constraintsInfo(String schema, String table) {
         validateSchema(schema);
         var keySql = """
                 SELECT tc.CONSTRAINT_NAME,
@@ -136,23 +140,22 @@ public class DbMetadataService {
                 WHERE s.name = ? AND t.name = ?
                 ORDER BY c.column_id
                 """;
-        return Map.of(
-                "schema", schema,
-                "table", table,
-                "keys", query(keySql, schema, table),
-                "checks", query(checkSql, schema, table),
-                "defaults", query(defaultsSql, schema, table)
+        return new ConstraintsInfoModel(schema,
+                table,
+                query(keySql, schema, table),
+                query(checkSql, schema, table),
+                query(defaultsSql, schema, table)
         );
     }
 
-    public Map<String, Object> sampleRows(String schema, String table, Integer limit) {
+    public SampleRowsModel sampleRows(String schema, String table, Integer limit) {
         validateSchema(schema);
         var safeLimit = Math.min(limit == null ? 10 : limit, properties.maxSampleRows());
         var sql = "SELECT TOP " + safeLimit + " * FROM " + quoted(schema, table);
-        return Map.of("schema", schema, "table", table, "limit", safeLimit, "rows", query(sql));
+        return new SampleRowsModel(schema, table, safeLimit, query(sql));
     }
 
-    public Map<String, Object> tableDependencies(String schema, String table) {
+    public TableDependenciesModel tableDependencies(String schema, String table) {
         validateSchema(schema);
         var parentGraph = loadParentGraph();
         var key = schema + "." + table;
@@ -165,21 +168,17 @@ public class DbMetadataService {
             }
         }
         var order = topologicalOrder(visited, parentGraph);
-        return Map.of(
-                "table", key,
-                "mustExistBeforeInsert", order,
-                "dependencyCount", visited.size()
-        );
+        return new TableDependenciesModel(key, order, visited.size());
     }
 
-    public Map<String, Object> safeSelect(String sql, Integer limit) {
+    public SafeSelectModel safeSelect(String sql, Integer limit) {
         var safeLimit = Math.min(limit == null ? properties.maxSelectRows() : limit, properties.maxSelectRows());
         var limitedSql = sqlSafetyValidator.enforceTopLimit(sql, safeLimit);
         var rows = query(limitedSql);
-        return Map.of("sql", limitedSql, "rowCount", rows.size(), "rows", rows);
+        return new SafeSelectModel(limitedSql, rows.size(), rows);
     }
 
-    public Map<String, Object> insertDryRun(String sql) {
+    public InsertDryRunModel insertDryRun(String sql) {
         sqlSafetyValidator.validateInsert(sql);
         try (var connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -191,18 +190,18 @@ public class DbMetadataService {
                 affected = statement.executeUpdate();
             }
             connection.rollback();
-            return Map.of(
-                    "sql", sql,
-                    "status", "ROLLED_BACK",
-                    "affectedRows", affected,
-                    "rolledBackAt", Instant.now().toString()
+            return new InsertDryRunModel(
+                    sql,
+                    "ROLLED_BACK",
+                    affected,
+                    Instant.now().toString()
             );
         } catch (SQLException e) {
             throw new IllegalStateException("Ошибка insert_dry_run: " + e.getMessage(), e);
         }
     }
 
-    public Map<String, Object> searchSchema(String term) {
+    public SearchSchemaModel searchSchema(String term) {
         var sql = """
                 SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE
                 FROM INFORMATION_SCHEMA.COLUMNS c
@@ -216,7 +215,7 @@ public class DbMetadataService {
         var params = new ArrayList<>(properties.schemaWhitelist());
         params.add("%" + term + "%");
         params.add("%" + term + "%");
-        return Map.of("term", term, "matches", query(sql, params.toArray()));
+        return new SearchSchemaModel(term,  query(sql, params.toArray()));
     }
 
     private List<Map<String, Object>> query(String sql, Object... params) {
