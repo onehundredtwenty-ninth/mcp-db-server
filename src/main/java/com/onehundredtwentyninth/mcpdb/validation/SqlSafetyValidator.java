@@ -14,9 +14,9 @@ import java.util.Set;
 public class SqlSafetyValidator {
 
     private static final Set<String> FORBIDDEN_TOKENS = Set.of(
-            "merge", "update", "delete ", "truncate", "alter", "drop", "create",
-            "exec ", "execute", "grant", "revoke", "deny", "dbcc", "backup",
-            "restore", "openrowset", "opendatasource", "xp_", "sp_"
+            "merge ", "update ", "delete ", "truncate ", "alter ", "drop ", "create ",
+            "exec ", "execute ", "grant ", "revoke ", "deny ", "dbcc ", "backup ",
+            "restore ", "openrowset ", "opendatasource ", "xp_ ", "sp_ "
     );
 
     private final DatabaseProperties properties;
