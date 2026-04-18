@@ -4,7 +4,6 @@ import com.onehundredtwentyninth.mcpdb.model.ConstraintsInfoModel;
 import com.onehundredtwentyninth.mcpdb.model.ForeignKeysModel;
 import com.onehundredtwentyninth.mcpdb.model.InsertDryRunModel;
 import com.onehundredtwentyninth.mcpdb.model.SafeSelectModel;
-import com.onehundredtwentyninth.mcpdb.model.SampleRowsModel;
 import com.onehundredtwentyninth.mcpdb.model.SchemaOverviewModel;
 import com.onehundredtwentyninth.mcpdb.model.SearchSchemaModel;
 import com.onehundredtwentyninth.mcpdb.model.TableDependenciesModel;
@@ -47,14 +46,6 @@ public class DatabaseTools {
             @ToolParam(description = "Схема") String schema,
             @ToolParam(description = "Имя таблицы") String table) {
         return service.constraintsInfo(schema, table);
-    }
-
-    @Tool(description = "sample_rows: возвращает несколько строк из таблицы для примера данных")
-    public SampleRowsModel sampleRows(
-            @ToolParam(description = "Схема") String schema,
-            @ToolParam(description = "Имя таблицы") String table,
-            @ToolParam(description = "Максимум строк, будет дополнительно ограничен сервером") Integer limit) {
-        return service.sampleRows(schema, table, limit);
     }
 
     @Tool(description = "table_dependencies: показывает зависимости таблицы и помогает понять, какие сущности нужно создать раньше")

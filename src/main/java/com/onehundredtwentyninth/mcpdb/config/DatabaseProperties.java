@@ -47,10 +47,6 @@ public record DatabaseProperties(
         @Max(5000)
         int maxSelectRows,
 
-        @Min(1)
-        @Max(200)
-        int maxSampleRows,
-
         @Min(20)
         @Max(10000)
         int maxTextLength

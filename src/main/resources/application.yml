@@ -27,5 +27,4 @@ app:
     connect-timeout-seconds: ${MCP_DB_CONNECT_TIMEOUT_SECONDS:5}
     query-timeout-seconds: ${MCP_DB_QUERY_TIMEOUT_SECONDS:15}
     max-select-rows: ${MCP_DB_MAX_SELECT_ROWS:200}
-    max-sample-rows: ${MCP_DB_MAX_SAMPLE_ROWS:20}
     max-text-length: ${MCP_DB_MAX_TEXT_LENGTH:1000}

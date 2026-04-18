@@ -5,7 +5,6 @@ import com.onehundredtwentyninth.mcpdb.model.ConstraintsInfoModel;
 import com.onehundredtwentyninth.mcpdb.model.ForeignKeysModel;
 import com.onehundredtwentyninth.mcpdb.model.InsertDryRunModel;
 import com.onehundredtwentyninth.mcpdb.model.SafeSelectModel;
-import com.onehundredtwentyninth.mcpdb.model.SampleRowsModel;
 import com.onehundredtwentyninth.mcpdb.model.SchemaOverviewModel;
 import com.onehundredtwentyninth.mcpdb.model.SearchSchemaModel;
 import com.onehundredtwentyninth.mcpdb.model.TableDependenciesModel;
@@ -146,13 +145,6 @@ public class DbMetadataService {
                 query(checkSql, schema, table),
                 query(defaultsSql, schema, table)
         );
-    }
-
-    public SampleRowsModel sampleRows(String schema, String table, Integer limit) {
-        validateSchema(schema);
-        var safeLimit = Math.min(limit == null ? 10 : limit, properties.maxSampleRows());
-        var sql = "SELECT TOP " + safeLimit + " * FROM " + quoted(schema, table);
-        return new SampleRowsModel(schema, table, safeLimit, query(sql));
     }
 
     public TableDependenciesModel tableDependencies(String schema, String table) {
