@@ -4,9 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 public record ConstraintsInfoModel(
-        String schema,
-        String table,
-        List<Map<String, Object>> keys,
+        List<Map<String, Object>> primaryKeys,
+        List<Map<String, Object>> uniqueKeys,
         List<Map<String, Object>> checks,
         List<Map<String, Object>> defaults
 ) {

@@ -77,9 +77,9 @@ java -jar build/libs/mcp-db-server.jar
 ## Доступные MCP tools
 
 - `schema_overview` — показывает список доступных таблиц и базовую информацию по ним
-- `describe_table` — показывает колонки таблицы, их типы данных и признак nullable
-- `foreign_keys` — показывает внешние ключи таблицы — на что она ссылается и кто ссылается на неё
-- `constraints_info` — показывает ограничения таблицы — PRIMARY KEY, UNIQUE, CHECK, DEFAULT, identity и computed колонки
+- `describe_table` — показывает колонки таблицы, их типы данных и признак nullable; показывает внешние ключи таблицы —
+  на что она ссылается и кто ссылается на неё; показывает ограничения таблицы — PRIMARY KEY, UNIQUE, CHECK, DEFAULT,
+  identity и computed колонки
 - `table_dependencies` — показывает зависимости таблицы и помогает понять, какие сущности нужно создать раньше
 - `insert_dry_run` — выполняет INSERT внутри транзакции с обязательным rollback для проверки корректности запроса
 - `safe_select` — выполняет произвольный SELECT-запрос

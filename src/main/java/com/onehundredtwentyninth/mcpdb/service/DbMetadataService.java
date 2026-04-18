@@ -73,75 +73,121 @@ public class DbMetadataService {
                 WHERE c.TABLE_SCHEMA = ? AND c.TABLE_NAME = ?
                 ORDER BY c.ORDINAL_POSITION
                 """;
+
         var columns = query(sql, schema, table);
-        return new TableDescriptionModel(schema, table, columns);
+        var foreignKeys = foreignKeys(schema, table);
+        var constraintsInfo = constraintsInfo(schema, table);
+
+        return new TableDescriptionModel(schema, table, foreignKeys, constraintsInfo, columns);
     }
 
     public ForeignKeysModel foreignKeys(String schema, String table) {
         validateSchema(schema);
-        var sql = """
-                SELECT fk.name AS FK_NAME,
-                       sch_parent.name AS PARENT_SCHEMA,
-                       tab_parent.name AS PARENT_TABLE,
-                       col_parent.name AS PARENT_COLUMN,
-                       sch_ref.name AS REFERENCED_SCHEMA,
-                       tab_ref.name AS REFERENCED_TABLE,
-                       col_ref.name AS REFERENCED_COLUMN
-                FROM sys.foreign_keys fk
-                JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
-                JOIN sys.tables tab_parent ON fk.parent_object_id = tab_parent.object_id
-                JOIN sys.schemas sch_parent ON tab_parent.schema_id = sch_parent.schema_id
-                JOIN sys.columns col_parent ON fkc.parent_object_id = col_parent.object_id AND fkc.parent_column_id = col_parent.column_id
-                JOIN sys.tables tab_ref ON fk.referenced_object_id = tab_ref.object_id
-                JOIN sys.schemas sch_ref ON tab_ref.schema_id = sch_ref.schema_id
-                JOIN sys.columns col_ref ON fkc.referenced_object_id = col_ref.object_id AND fkc.referenced_column_id = col_ref.column_id
-                WHERE sch_parent.name = ? AND tab_parent.name = ?
-                ORDER BY fk.name, fkc.constraint_column_id
-                """;
-        var outgoing = query(sql, schema, table);
-        var incomingSql = sql.replace("sch_parent.name = ? AND tab_parent.name = ?", "sch_ref.name = ? AND tab_ref.name = ?");
+
+        var outgoingSql = """
+            SELECT fk.name AS FK_NAME,
+                   sch_parent.name AS PARENT_SCHEMA,
+                   tab_parent.name AS PARENT_TABLE,
+                   col_parent.name AS PARENT_COLUMN,
+                   sch_ref.name AS REFERENCED_SCHEMA,
+                   tab_ref.name AS REFERENCED_TABLE,
+                   col_ref.name AS REFERENCED_COLUMN
+            FROM sys.foreign_keys fk
+            JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+            JOIN sys.tables tab_parent ON fk.parent_object_id = tab_parent.object_id
+            JOIN sys.schemas sch_parent ON tab_parent.schema_id = sch_parent.schema_id
+            JOIN sys.columns col_parent ON fkc.parent_object_id = col_parent.object_id AND fkc.parent_column_id = col_parent.column_id
+            JOIN sys.tables tab_ref ON fk.referenced_object_id = tab_ref.object_id
+            JOIN sys.schemas sch_ref ON tab_ref.schema_id = sch_ref.schema_id
+            JOIN sys.columns col_ref ON fkc.referenced_object_id = col_ref.object_id AND fkc.referenced_column_id = col_ref.column_id
+            WHERE sch_parent.name = ? AND tab_parent.name = ?
+            ORDER BY fk.name, fkc.constraint_column_id
+            """;
+
+        var incomingSql = """
+            SELECT fk.name AS FK_NAME,
+                   sch_parent.name AS PARENT_SCHEMA,
+                   tab_parent.name AS PARENT_TABLE,
+                   col_parent.name AS PARENT_COLUMN,
+                   sch_ref.name AS REFERENCED_SCHEMA,
+                   tab_ref.name AS REFERENCED_TABLE,
+                   col_ref.name AS REFERENCED_COLUMN
+            FROM sys.foreign_keys fk
+            JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+            JOIN sys.tables tab_parent ON fk.parent_object_id = tab_parent.object_id
+            JOIN sys.schemas sch_parent ON tab_parent.schema_id = sch_parent.schema_id
+            JOIN sys.columns col_parent ON fkc.parent_object_id = col_parent.object_id AND fkc.parent_column_id = col_parent.column_id
+            JOIN sys.tables tab_ref ON fk.referenced_object_id = tab_ref.object_id
+            JOIN sys.schemas sch_ref ON tab_ref.schema_id = sch_ref.schema_id
+            JOIN sys.columns col_ref ON fkc.referenced_object_id = col_ref.object_id AND fkc.referenced_column_id = col_ref.column_id
+            WHERE sch_ref.name = ? AND tab_ref.name = ?
+            ORDER BY fk.name, fkc.constraint_column_id
+            """;
+
+        var outgoing = query(outgoingSql, schema, table);
         var incoming = query(incomingSql, schema, table);
-        return new ForeignKeysModel(schema, table, outgoing, incoming);
+
+        return new ForeignKeysModel(outgoing, incoming);
     }
 
     public ConstraintsInfoModel constraintsInfo(String schema, String table) {
         validateSchema(schema);
-        var keySql = """
-                SELECT tc.CONSTRAINT_NAME,
-                       tc.CONSTRAINT_TYPE,
-                       kcu.COLUMN_NAME,
-                       kcu.ORDINAL_POSITION
-                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-                LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-                  ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-                 AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
-                 AND tc.TABLE_NAME = kcu.TABLE_NAME
-                WHERE tc.TABLE_SCHEMA = ? AND tc.TABLE_NAME = ?
-                ORDER BY tc.CONSTRAINT_TYPE, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
-                """;
+
+        var primaryKeySql = """
+            SELECT tc.CONSTRAINT_NAME,
+                   kcu.COLUMN_NAME,
+                   kcu.ORDINAL_POSITION
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+              ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+             AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+             AND tc.TABLE_NAME = kcu.TABLE_NAME
+            WHERE tc.TABLE_SCHEMA = ?
+              AND tc.TABLE_NAME = ?
+              AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+            ORDER BY tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+            """;
+
+        var uniqueKeySql = """
+            SELECT tc.CONSTRAINT_NAME,
+                   kcu.COLUMN_NAME,
+                   kcu.ORDINAL_POSITION
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+              ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+             AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+             AND tc.TABLE_NAME = kcu.TABLE_NAME
+            WHERE tc.TABLE_SCHEMA = ?
+              AND tc.TABLE_NAME = ?
+              AND tc.CONSTRAINT_TYPE = 'UNIQUE'
+            ORDER BY tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+            """;
+
         var checkSql = """
-                SELECT cc.name AS CHECK_NAME,
-                       cc.definition AS CHECK_DEFINITION
-                FROM sys.check_constraints cc
-                JOIN sys.tables t ON cc.parent_object_id = t.object_id
-                JOIN sys.schemas s ON t.schema_id = s.schema_id
-                WHERE s.name = ? AND t.name = ?
-                ORDER BY cc.name
-                """;
+            SELECT cc.name AS CHECK_NAME,
+                   cc.definition AS CHECK_DEFINITION
+            FROM sys.check_constraints cc
+            JOIN sys.tables t ON cc.parent_object_id = t.object_id
+            JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE s.name = ? AND t.name = ?
+            ORDER BY cc.name
+            """;
+
         var defaultsSql = """
-                SELECT c.name AS COLUMN_NAME,
-                       dc.name AS DEFAULT_NAME,
-                       dc.definition AS DEFAULT_DEFINITION
-                FROM sys.default_constraints dc
-                JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
-                JOIN sys.tables t ON c.object_id = t.object_id
-                JOIN sys.schemas s ON t.schema_id = s.schema_id
-                WHERE s.name = ? AND t.name = ?
-                ORDER BY c.column_id
-                """;
-        return new ConstraintsInfoModel(schema,
-                table,
-                query(keySql, schema, table),
+            SELECT c.name AS COLUMN_NAME,
+                   dc.name AS DEFAULT_NAME,
+                   dc.definition AS DEFAULT_DEFINITION
+            FROM sys.default_constraints dc
+            JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+            JOIN sys.tables t ON c.object_id = t.object_id
+            JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE s.name = ? AND t.name = ?
+            ORDER BY c.column_id
+            """;
+
+        return new ConstraintsInfoModel(
+                query(primaryKeySql, schema, table),
+                query(uniqueKeySql, schema, table),
                 query(checkSql, schema, table),
                 query(defaultsSql, schema, table)
         );
@@ -248,10 +294,6 @@ public class DbMetadataService {
         if (schema == null || properties.schemaWhitelist().stream().noneMatch(schema::equalsIgnoreCase)) {
             throw new IllegalArgumentException("Схема '%s' не входит в whitelist".formatted(schema));
         }
-    }
-
-    private String quoted(String schema, String table) {
-        return "[" + schema + "].[" + table + "]";
     }
 
     private String inClause(int size) {
