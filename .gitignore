@@ -1,0 +1,26 @@
+### build ###
+.gradle/
+build/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### logs ###
+*.log
+
+### local configuration and secrets ###
+.env
+.env.*
+!.env.example
+mcp.json
+*.pem
+*.key
+application-local.yml
+application-local.yaml
+
+### other ###
+.classpath
+.project

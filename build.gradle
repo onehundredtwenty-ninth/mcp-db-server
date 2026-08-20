@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.9'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.onehundredtwentyninth'
+version = '0.1.0'
+
+description = 'MCP server for safe SQL Server metadata access and insert dry-run'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    springAiVersion = '1.1.4'
+    jsqlparserVersion = '5.3'
+    jtdsVersion = '1.3.1'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server'
+    implementation "com.github.jsqlparser:jsqlparser:${jsqlparserVersion}"
+    implementation "net.sourceforge.jtds:jtds:${jtdsVersion}"
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'mcp-db-server.jar'
+}
